@@ -6,8 +6,6 @@ on:
 
 env:
   py: "3.9"
-  vcpkgCommitId: '4e9fefefc5229e15881dd8ad6571265f53d821c6'
-
   
 jobs:
   test:
@@ -17,14 +15,8 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            VCPKG_DEFAULT_TRIPLET: "x64-windows-static-md"
-            VCPKG_DIR: "D:\\vcpkg"
           - os: macOS-latest
-            VCPKG_DEFAULT_TRIPLET: "x64-osx"
-            VCPKG_DIR: '/tmp/vcpkg'
           - os: ubuntu-latest
-            VCPKG_DEFAULT_TRIPLET: "x64-linux"
-            VCPKG_DIR: '/tmp/vcpkg'
 
     steps:
       - uses: actions/checkout@v6
@@ -35,19 +27,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ env.py }}
-
-      - uses: lukka/get-cmake@latest
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@main
-        id: runvcpkg
-        with:
-          # This specifies the location of vcpkg, where it is going to be restored from cache, or create from scratch.
-          vcpkgDirectory: ${{ matrix.VCPKG_DIR }}
-          # The Git commit id of vcpkg to be checked out. This is only needed because we are not using a submodule.
-          vcpkgGitCommitId: '${{ env.vcpkgCommitId }}'
-          # The vcpkg.json file, which will be part of cache key computation.
-          vcpkgJsonGlob: '**/libdarknetpy/vcpkg.json'
-          doNotCache: false
 
       - name: Install deps
         run: choco install 7zip
