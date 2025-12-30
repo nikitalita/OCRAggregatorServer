@@ -27,12 +27,12 @@ jobs:
             VCPKG_DIR: '/tmp/vcpkg'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.py }}
 
@@ -83,7 +83,7 @@ jobs:
           7z a -r ocr_aggregator_server_${{ matrix.os }}.zip ocr_aggregator_server
         shell: pwsh
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v6
         continue-on-error: true
         with:
           name: ocr_aggregator_server_${{ matrix.os }}
