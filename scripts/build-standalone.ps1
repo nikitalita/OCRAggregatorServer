@@ -57,7 +57,10 @@ python -m pip install pyinstaller
 
 # if we're not on windows, run `df -h`
 if ($env:OS -ne "Windows_NT") {
+    Write-Host "**** Disk space before build:"
     df -h
+    Write-Host "**** Disk space used in venv:"
+    du -hs $venv_dir
 }
 
 # We probably don't need this for the standalone build now.
