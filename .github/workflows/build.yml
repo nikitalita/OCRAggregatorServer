@@ -41,8 +41,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
-          sudo apt-get install -y yasm nasm gperf libgles2-mesa-dev libx11-dev libxft-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev libxdamage-dev libxinerama-dev libdbus-1-dev libxtst-dev build-essential g++ apt-transport-https ca-certificates gnupg software-properties-common zlib1g p7zip-full
-          sudo apt-get clean
+          sudo apt install -y yasm nasm gperf libgles2-mesa-dev libx11-dev libxft-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev libxdamage-dev libxinerama-dev libdbus-1-dev libxtst-dev build-essential g++ apt-transport-https ca-certificates gnupg software-properties-common zlib1g p7zip-full
+          sudo apt clean
+
+      - name: print disk space
+        shell: bash
+        run: df -h || echo "df -h failed"
 
       - name: Build Standalone binary
         run: ${{ github.workspace }}/scripts/build-standalone.ps1

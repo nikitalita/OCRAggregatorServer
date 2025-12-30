@@ -55,6 +55,11 @@ if ( -not (Test-Path $venv_activate)) {
 python -m pip install $parent_dir
 python -m pip install pyinstaller
 
+# if we're not on windows, run `df -h`
+if ($env:OS -ne "Windows_NT") {
+    df -h
+}
+
 # We probably don't need this for the standalone build now.
 # check if model.cfg, model.weights, and model.json exist
 # if ( -not (Test-Path "$data_dir/model.cfg") -or -not (Test-Path "$data_dir/model.weights") -or -not (Test-Path "$data_dir/model.json")) {
