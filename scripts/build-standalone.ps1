@@ -50,17 +50,26 @@ if ( -not (Test-Path $venv_activate)) {
     Write-Host "Please remove the venv directory and try again."
     exit 1
 }
-. "$venv_dir/$venv_scripts_dir/Activate.ps1"
+. "$venv_activate"
 
 python -m pip install $parent_dir
 python -m pip install pyinstaller
 
-# if we're not on windows, run `df -h`
-if ($env:OS -ne "Windows_NT") {
-    Write-Host "**** Disk space before build:"
-    df -h
-    Write-Host "**** Disk space used in venv:"
-    du -hs $venv_dir
+if ($env:IS_CI) {
+    # if we're not on windows, run `df -h`
+    if ($env:OS -ne "Windows_NT") {
+        Write-Host "**** Disk space before build:"
+        df -h
+        Write-Host "**** Disk space used in venv:"
+        du -hs $venv_dir
+    }
+    Write-Host "Purging pip cache..."
+    python -m pip cache purge
+
+    if ($env:OS -ne "Windows_NT") {
+        Write-Host "**** Disk space before build (after pip cache purge):"
+        df -h
+    }
 }
 
 # We probably don't need this for the standalone build now.

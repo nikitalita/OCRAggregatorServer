@@ -49,8 +49,10 @@ jobs:
         run: df -h || echo "df -h failed"
 
       - name: Build Standalone binary
-        run: ${{ github.workspace }}/scripts/build-standalone.ps1
         shell: pwsh
+        env:
+          IS_CI: true
+        run: ${{ github.workspace }}/scripts/build-standalone.ps1
 
         # We need to clean before zipping or we might run out of space on the runners
       - name: Clean
