@@ -6,6 +6,5 @@ fugashi>=1.3.0
 Pillow>=10.0.0
 pytesseract
 requests
-libdarknetpy
 onnxruntime
 huggingface-hub

@@ -20,11 +20,6 @@ if not (os.path.exists(data_dir) and os.path.isdir(data_dir)):
 if not (os.path.exists(data_dir) and os.path.isdir(data_dir)):
     data_dir = "data"
 
-MODEL_CFG = os.path.join(data_dir, "model.cfg")
-MODEL_WEIGHTS = os.path.join(data_dir, "model.weights")
-
-print("Using model.cfg: {}".format(MODEL_CFG))
-print("Using model.weights: {}".format(MODEL_WEIGHTS))
 
 def create_box_sorter():
     def sorter(image_file, detections: list[tuple[int, int, int, int]]):
@@ -78,19 +73,21 @@ def create_box_sorter():
 
 
 def create_darknet_detector(detection_sorter):
-    import libdarknetpy as m
-    detector = m.Detector(
+    from .darknet import load_darknet_detector
+    MODEL_CFG = os.path.join(data_dir, "model.cfg")
+    MODEL_WEIGHTS = os.path.join(data_dir, "model.weights")
+
+    print("Darknet: Using model.cfg: {}".format(MODEL_CFG))
+    print("Darknet: Using model.weights: {}".format(MODEL_WEIGHTS))
+
+    Detector = load_darknet_detector()
+    detector = Detector(
         MODEL_CFG,
         MODEL_WEIGHTS,
-        0, 
-        1)
-    def process_detection(result: list[m.bbox_t]):
-        return [(box.x, box.y, box.x + box.w, box.y + box.h) for box in result]
+        0)
 
     def detect(image_file):
-        bytes_read = image_file.read()
-        input_image = list(bytes_read)
-        result = process_detection(detector.detect_raw(input_image))
+        result = detector.detect(image_file)
         return [(x1 - 10, y1 - 10, x2 + 10, y2 + 10) for x1, y1, x2, y2 in detection_sorter(image_file, result)]
 
     return detect
@@ -270,9 +267,15 @@ def create_engines(
     else:
         ocr = None
 
+    detector = None
     if detector_mode == 'darknet':
-        detector = create_darknet_detector(sorter)
-    else:
+        try:
+            detector = create_darknet_detector(sorter)
+        except Exception as e:
+            print(f"Error creating darknet detector: {e}")
+            print(f"Falling back to ogkalu detector")
+            detector = None
+    if detector is None:
         detector = create_ogkalu_detector(sorter)
 
     if combined_mode is None:
