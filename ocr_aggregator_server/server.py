@@ -5,8 +5,6 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import PIL.Image
 import io
-import cv2
-import np
 import os
 
 #find the data directory
@@ -98,6 +96,105 @@ def create_darknet_detector(detection_sorter):
     return detect
 
 
+class ogkalu_bbox:
+    x: int
+    y: int
+    x2: int
+    y2: int
+    confidence: float
+    label: int
+    
+    def __init__(self, x: int, y: int, x2: int, y2: int, confidence: float, label: int):
+        self.x = int(x)
+        self.y = int(y)
+        self.x2 = int(x2)
+        self.y2 = int(y2)
+        self.confidence = float(confidence)
+        self.label = int(label)
+
+
+def create_ogkalu_detector(detection_sorter):
+    import numpy as np
+    import onnxruntime as ort
+    from onnxruntime import InferenceSession
+    from huggingface_hub import hf_hub_download, snapshot_download
+    from PIL import Image
+    
+    model_name = "ogkalu/comic-text-and-bubble-detector"
+    model_dir: str = snapshot_download(
+        repo_id=model_name
+    )
+    model_filename = "detector.onnx"
+    model_path = os.path.join(model_dir, model_filename)
+    session: InferenceSession = InferenceSession(model_path)
+        
+    def read_image(path):
+        """Read an image file and return as RGB numpy array."""
+        im = Image.open(path)
+        if im.mode != "RGB":
+            im = im.convert("RGB")
+        return im
+
+    def get_image_array(path):
+        pil_image = read_image(path)
+        image_arr = np.array(pil_image)
+        
+        # pil_image = Image.fromarray(image_arr)  # image is already in RGB format
+        im_resized = pil_image.resize((640, 640))
+        arr = np.asarray(im_resized, dtype=np.float32) / 255.0  # (H,W,3)
+        arr = np.transpose(arr, (2, 0, 1))  # (3,H,W)
+        im_data = arr[np.newaxis, ...]  # (1,3,H,W)
+
+        w, h = pil_image.size
+        orig_size = np.array([[w, h]], dtype=np.int64)
+        return im_data, orig_size, image_arr
+
+    def process_detection(result: list[ogkalu_bbox]):
+        return [(box.x, box.y, box.x2, box.y2) for box in result]
+
+    def detect(image_file):
+        resized_im_data, orig_size, image_arr = get_image_array(image_file)
+                
+        opt = {}
+        opt["orig_target_sizes"] = [orig_size]
+        outputs = session.run(None, {
+        "images": resized_im_data,
+        "orig_target_sizes": orig_size
+        })
+        names = {
+            0: "bubble",
+            1: "text_bubble",
+            2: "text_free"
+        }
+        
+        labels, boxes, scores = outputs[:3]
+
+        if isinstance(labels, np.ndarray) and labels.ndim == 2 and labels.shape[0] == 1:
+            labels = labels[0]
+        if isinstance(scores, np.ndarray) and scores.ndim == 2 and scores.shape[0] == 1:
+            scores = scores[0]
+        if isinstance(boxes, np.ndarray) and boxes.ndim == 3 and boxes.shape[0] == 1:
+            boxes = boxes[0]
+
+
+        bubble_boxes = []
+        text_boxes = []
+        for i, box in enumerate(boxes):
+            confidence = scores[i]
+            if confidence < 0.3:
+                continue
+            label = labels[i]
+            new_box = ogkalu_bbox(box[0], box[1], box[2], box[3], confidence, label)
+            if label == 0:
+                bubble_boxes.append(new_box)
+            elif label in [1, 2]:
+                text_boxes.append(new_box)
+                
+        result = process_detection(text_boxes)
+        return [(x1, y1, x2, y2) for x1, y1, x2, y2 in detection_sorter(image_file, result)]
+
+    return detect
+
 def create_manga_ocr():
     from manga_ocr import MangaOcr
     mocr = MangaOcr(force_cpu=True)
@@ -176,7 +273,7 @@ def create_engines(
     if detector_mode == 'darknet':
         detector = create_darknet_detector(sorter)
     else:
-        detector = None
+        detector = create_ogkalu_detector(sorter)
 
     if combined_mode is None:
         combined_detector_ocr = create_combined_detector_ocr(ocr, detector)
@@ -220,7 +317,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", action="store", default="127.0.0.1")
     parser.add_argument("--port", action="store", default="8000")
-    parser.add_argument("--detection-mode", action="store", default="darknet")
+    parser.add_argument("--detection-mode", action="store", default="ogkalu")
     parser.add_argument("--ocr-mode", action="store", default="manga-ocr")
     parser.add_argument("--combined-detection-ocr-mode", action="store", default=None)
     parser.add_argument("--detection-ordering-mode", action="store", default='y_coordinate')

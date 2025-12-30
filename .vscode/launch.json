@@ -13,10 +13,10 @@
             "justMyCode": false
         },
         {
-            "name": "Python: Current File",
+            "name": "Python: test.py",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/test/test.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "justMyCode": false
