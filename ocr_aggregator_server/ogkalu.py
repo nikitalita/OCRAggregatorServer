@@ -274,7 +274,7 @@ def get_image_array(path):
     orig_size = np.array([[w, h]], dtype=np.int64)
     return im_data, orig_size, image_arr
 
-def detect(image_file, session):
+def detect(image_file, session, confidence_threshold):
     resized_im_data, orig_size, image_arr = get_image_array(image_file)
             
     opt = {}
@@ -303,7 +303,7 @@ def detect(image_file, session):
     box_to_label = {}
     for i, box in enumerate(boxes):
         confidence = scores[i]
-        if confidence < 0.3:
+        if confidence < confidence_threshold:
             continue
         label = labels[i]
         if label == 0:

@@ -89,7 +89,7 @@ def create_darknet_detector(detection_sorter):
 
     return detect
 
-def create_ogkalu_detector(detection_sorter):
+def create_ogkalu_detector(detection_sorter, confidence_threshold=0.3):
     from . import ogkalu
     from onnxruntime import InferenceSession
     from huggingface_hub import hf_hub_download
@@ -108,7 +108,7 @@ def create_ogkalu_detector(detection_sorter):
         return [(int(box[0]), int(box[1]), int(box[2]), int(box[3])) for box in result]
 
     def detect(image_file):
-        text_boxes = ogkalu.detect(image_file, session)
+        text_boxes = ogkalu.detect(image_file, session, confidence_threshold)
         result = process_detection(text_boxes)
         return [(x1, y1, x2, y2) for x1, y1, x2, y2 in detection_sorter(image_file, result)]
 
@@ -176,7 +176,8 @@ def create_engines(
         ocr_mode: str,
         detector_mode: str,
         combined_mode: Union[str, None],
-        detection_sorter_mode: str):
+        detection_sorter_mode: str,
+        confidence_threshold: float):
 
     if detection_sorter_mode == 'y_coordinate':
         sorter = create_box_sorter()
@@ -199,7 +200,7 @@ def create_engines(
             print(f"Falling back to ogkalu detector")
             detector = None
     if detector is None:
-        detector = create_ogkalu_detector(sorter)
+        detector = create_ogkalu_detector(sorter, confidence_threshold)
 
     if combined_mode is None:
         combined_detector_ocr = create_combined_detector_ocr(ocr, detector)
@@ -273,6 +274,7 @@ def main():
     parser.add_argument("--ocr-mode", action="store", default="manga-ocr")
     parser.add_argument("--combined-detection-ocr-mode", action="store", default=None)
     parser.add_argument("--detection-ordering-mode", action="store", default='y_coordinate')
+    parser.add_argument("--confidence-threshold", action="store", default=0.3, help="The confidence threshold for the ogkalu detector")
     parser.add_argument("--test-image", action="store", default=None, help="Run the combined detection and OCR on the test image and then exit")
     parser.add_argument("--test-image-output", action="store", default=None, help="Output the test image to the specified file")
 
@@ -281,7 +283,8 @@ def main():
         args.ocr_mode,
         args.detection_mode,
         args.combined_detection_ocr_mode,
-        args.detection_ordering_mode)
+        args.detection_ordering_mode,
+        float(args.confidence_threshold))
     if args.test_image is not None:
         image_path = args.test_image
         if args.test_image_output is not None:
