@@ -6,19 +6,16 @@ from flask_cors import CORS
 import PIL.Image
 import io
 import os
+from .util import get_data_dir
 
 #find the data directory
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 
 print ("Current directory: {}".format(cur_dir))
 
-data_dir = os.path.normpath(os.path.join(cur_dir, "..", "data"))
-if not (os.path.exists(data_dir) and os.path.isdir(data_dir)):
-    data_dir = os.path.normpath(os.path.join(cur_dir, "data"))
-if not (os.path.exists(data_dir) and os.path.isdir(data_dir)):
-    data_dir = os.path.join(cur_dir, "_internal/data")
-if not (os.path.exists(data_dir) and os.path.isdir(data_dir)):
-    data_dir = "data"
+data_dir = get_data_dir()
+
+print("Data directory: {}".format(data_dir))
 
 
 def create_box_sorter():
@@ -312,6 +309,32 @@ def create_app(ocr, detector, combined_detector_ocr, config=None):
 
     return app
 
+def test_image(image_path, output_dir, combined_detector_ocr):
+    import json
+    from .util import draw_boxes_on_image
+    image_paths = []
+    # check if the image path is a directory or a file
+    if os.path.isdir(image_path):
+        # get all the pngs, jpegs, and jpgs in the directory
+        for file in os.listdir(image_path):
+            if file.endswith('.png') or file.endswith('.jpg') or file.endswith('.jpeg'):
+                image_file = os.path.join(image_path, file)
+                image_paths.append(image_file)
+    else:
+        image_paths.append(image_path)
+    for image_path in image_paths:
+        with open(image_path, 'rb') as image_file:
+            ret = combined_detector_ocr(image_file)
+            print(json.dumps(ret, ensure_ascii=False))
+            ext = os.path.splitext(image_path)[-1]
+            image_file_name = os.path.basename(image_path)
+            output_file = os.path.join(output_dir, image_file_name.replace(ext, f'_detected_combined.png'))
+            image = draw_boxes_on_image(image_path, ret)
+            #ensure dir
+            os.makedirs(output_dir, exist_ok=True)
+            image.save(output_file)
+    return 0
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -321,6 +344,8 @@ def main():
     parser.add_argument("--ocr-mode", action="store", default="manga-ocr")
     parser.add_argument("--combined-detection-ocr-mode", action="store", default=None)
     parser.add_argument("--detection-ordering-mode", action="store", default='y_coordinate')
+    parser.add_argument("--test-image", action="store", default=None, help="Run the combined detection and OCR on the test image and then exit")
+    parser.add_argument("--test-image-output", action="store", default=None, help="Output the test image to the specified file")
 
     args = parser.parse_args()
     ocr, detector, combined_detector_ocr = create_engines(
@@ -328,6 +353,15 @@ def main():
         args.detection_mode,
         args.combined_detection_ocr_mode,
         args.detection_ordering_mode)
+    if args.test_image is not None:
+        image_path = args.test_image
+        if args.test_image_output is not None:
+            output_dir = args.test_image_output
+        else:
+            output_dir = os.path.dirname(image_path)
+        test_image(image_path, output_dir, combined_detector_ocr)
+        return 0
+
     created_app = create_app(ocr, detector, combined_detector_ocr)
     created_app.run(host=args.host, port=args.port, use_reloader=False)
 
