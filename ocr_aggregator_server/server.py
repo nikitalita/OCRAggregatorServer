@@ -118,13 +118,15 @@ def create_ogkalu_detector(detection_sorter):
     from PIL import Image
     
     model_name = "ogkalu/comic-text-and-bubble-detector"
-    model_dir: str = snapshot_download(
-        repo_id=model_name
-    )
     model_filename = "detector.onnx"
-    model_path = os.path.join(model_dir, model_filename)
+    # download the config.json file first
+    hf_hub_download(repo_id=model_name, filename='config.json')
+    model_path: str = hf_hub_download(
+        repo_id=model_name,
+        filename=model_filename
+    )
     session: InferenceSession = InferenceSession(model_path)
-        
+    
     def read_image(path):
         """Read an image file and return as RGB numpy array."""
         im = Image.open(path)
@@ -155,14 +157,9 @@ def create_ogkalu_detector(detection_sorter):
         opt = {}
         opt["orig_target_sizes"] = [orig_size]
         outputs = session.run(None, {
-        "images": resized_im_data,
-        "orig_target_sizes": orig_size
+            "images": resized_im_data,
+            "orig_target_sizes": orig_size
         })
-        names = {
-            0: "bubble",
-            1: "text_bubble",
-            2: "text_free"
-        }
         
         labels, boxes, scores = outputs[:3]
 
